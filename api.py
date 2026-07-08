@@ -32,7 +32,7 @@ class Analysis(BaseModel):
 def home():
     return {"message":"Welcome to the Review analysis project."}
 
-@app.post('/analyze')
+@app.post('/analyze', response_model=Analysis)
 def analyze(review: Review):
     prompt = (
         "Analyze this customer review."

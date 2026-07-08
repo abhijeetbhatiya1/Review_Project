@@ -1,46 +1,63 @@
 # 📝 Customer Feedback Analyzer
 
-A lightweight, privacy-first, and completely local AI-powered sentiment analysis system for customer reviews. This project decouples the architecture into a **Streamlit** frontend dashboard, a **FastAPI** microservice backend, an **Ollama** local LLM engine (`llama3.2:3b`), and a **SQLite** database for persistent storage.
+A local, privacy-first AI sentiment analysis system for customer reviews. This project features a FastAPI microservice backend powered by **Ollama**, a SQLite database for history tracking, and a Streamlit dashboard frontend.
 
 ---
 
 ## 🏗️ Project Architecture
 
-The project is structured into three clean layers to ensure separation of concerns:
+The app is structured into three clean layers:
+* 🖥️ **Frontend ([app.py](app.py))**: A Streamlit dashboard where users paste customer reviews, view sentiment metrics, and save history.
+* ⚙️ **Backend ([api.py](api.py))**: A FastAPI microservice that uses Ollama to perform structured JSON sentiment analysis.
+* 💾 **Database ([database.py](database.py))**: SQLite storage layer that creates and manages the local database (`feedback.db`).
 
-```text
-├── api.py       # FastAPI microservice (Structured JSON generation via Ollama)
-├── app.py       # Streamlit dashboard (Frontend UI, batch handling & metrics)
-├── database.py  # SQLite database layer (Data persistence and history tracking)
-└── feedback.db  # Generated local SQLite database file
+---
 
-## 🚀 How to Run the App (Quick Start)
+## 📦 Dependencies
 
-Because the project features a fully unified pipeline, you do not need to manage multiple terminal tabs or manually coordinate background processes. The single-file entry script handles process orchestration automatically.
+The project requirements are defined in [pyproject.toml](pyproject.toml) and managed using `uv`:
+* 🎈 **Streamlit (v1.58.0)** — Frontend UI framework
+* ⚡ **FastAPI (>=0.136.3)** & **Uvicorn (v0.40.0)** — High-performance backend & web server
+* 🦙 **Ollama (v0.6.1)** — Local LLM integration
+* 🛡️ **Pydantic (>=2.13.4)** — Schema and type enforcement
+* 🔗 **Requests (>=2.34.2)** — Communication between frontend and backend
+* 🗄️ **ChromaDB (v1.4.1)** & **Python-dotenv (>=1.2.2)** — Database & local config management
 
-Follow this exact terminal sequence:
+---
 
-### 1. Run your Local AI Engine
-Ensure Ollama is running in the background and pull your model to verify it's active:
+## 🚀 How to Run the Project
+
+### 1️⃣ Run the Local AI Engine
+Ensure **Ollama** is running locally and pull the target model (we use `llama3.2:3b` as a reference, but you can use any compatible model you want):
 ```bash
 ollama pull llama3.2:3b
+```
 
-### 2. Install Project Dependencies
-check Dependencies in **pyproject.toml** file.
+### 2️⃣ Install Dependencies
+Synchronize project packages using `uv`:
 ```bash
 uv sync
+```
 
-### 3. Launch the Application
-Execute the unified app script from your main project folder. This single command will silently initialize the SQLite database table, boot your FastAPI background worker, and launch your Streamlit UI dashboard interface:
-
+### 3️⃣ Start the Backend Microservice
+Run the FastAPI backend (in your first terminal):
 ```bash
-uv run combined_app.py
+uv run fastapi dev api.py
+```
+*The service will start at `http://127.0.0.1:8000`.*
 
-### 4. Stopping the Stack
-When you are done testing, simply press Ctrl + C inside your terminal window to cleanly kill both the frontend and background backend processes simultaneously.
+### 4️⃣ Start the Frontend Dashboard
+Run the Streamlit frontend (in a second terminal):
+```bash
+uv run streamlit run app.py
+```
+*The dashboard will automatically open in your browser!* 
 
-***
+---
 
-### 💡 One Quick Adjustment
-If you are replacing the previous setup instructions with this, make sure the top file tree visualization in your `README.md` simply shows your new single-file name (like `combined_app.py`) so your documentation stays perfectly synchronized with your workspace!
-***
+## 🧠 Local AI Model Details
+This project runs entirely offline using the **`llama3.2:3b`** model via Ollama. 
+The backend parses each review and returns structured JSON containing:
+* **Label**: `positive` 😊, `neutral` 😐, or `negative` 😡
+* **Score**: `1` (Very Bad) to `5` (Very Good) ⭐
+* **Theme**: One-word topic categorization (e.g., `delivery`, `price`, `service`) 🏷️

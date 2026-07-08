@@ -20,13 +20,25 @@ from database import init_db, save_results, load_history, DB_FILE
 # The address of our own backend service.
 API_URL = "http://127.0.0.1:8000/analyze"
 
+def save_and_clear():
+    if "results" in st.session_state:
+        save_results(st.session_state.results)
+        st.session_state.success_message = f"Saved {len(st.session_state.results)} reviews to the database."
+        st.session_state.fade_out = True
+    st.session_state.reviews_input = ""
+
 # Make sure the table exists before the app uses it.
 init_db()
 
 st.title("📝 Customer Feedback Analyzer")
+
+if "success_message" in st.session_state:
+    st.success(st.session_state.success_message)
+    del st.session_state.success_message
+
 st.write("Paste your customer reviews below, one review per line.")
 
-reviews_text = st.text_area("Reviews", height=200)
+reviews_text = st.text_area("Reviews", height=200, key="reviews_input")
 
 if st.button("Analyze"):
     # Split the text box into separate reviews, ignoring blank lines.
@@ -34,7 +46,10 @@ if st.button("Analyze"):
 
     if not reviews:
         st.warning("Please provide at least one review.")
+        if "results" in st.session_state:
+            del st.session_state.results
     else:
+        st.session_state.fade_out = False
         results = []
         # Go through each review and ask our backend to analyze it.
         for review in reviews:
@@ -63,33 +78,66 @@ if st.button("Analyze"):
 if "results" in st.session_state:
     results = st.session_state.results
 
-    st.subheader("Results")
-    st.dataframe(results)
+    # Inject CSS for the fade-out animation if the fade_out flag is True
+    if st.session_state.get("fade_out", False):
+        st.markdown(
+            """
+            <style>
+            @keyframes fadeOut {
+                0% {
+                    opacity: 1;
+                    max-height: 2000px;
+                }
+                99% {
+                    opacity: 0;
+                    max-height: 0px;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    overflow: hidden;
+                }
+                100% {
+                    opacity: 0;
+                    max-height: 0px;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    overflow: hidden;
+                    display: none !important;
+                }
+            }
+            .st-key-results_container {
+                animation: fadeOut 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
 
-    # ---- A simple summary for the business owner ----
-    scores = [r["score"] for r in results if r["label"] != "error"]
-    positive = [r for r in results if r["label"] == "positive"]
-    themes = [r["theme"] for r in results if r["theme"] != "error"]
+    with st.container(key="results_container"):
+        st.subheader("Results")
+        st.dataframe(results)
 
-    st.subheader("Summary")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Reviews", len(results))
-    if scores:
-        col2.metric("Average score", round(sum(scores) / len(scores), 1))
-        col3.metric("% Positive", f"{round(len(positive) / len(results) * 100)}%")
+        # ---- A simple summary for the business owner ----
+        scores = [r["score"] for r in results if r["label"] != "error"]
+        positive = [r for r in results if r["label"] == "positive"]
+        themes = [r["theme"] for r in results if r["theme"] != "error"]
 
-    if themes:
-        # Counter tells us which theme appears most often.
-        top_theme = Counter(themes).most_common(1)[0][0]
-        st.info(f"Customers talk most about: **{top_theme}**")
+        st.subheader("Summary")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Reviews", len(results))
+        if scores:
+            col2.metric("Average score", round(sum(scores) / len(scores), 1))
+            col3.metric("% Positive", f"{round(len(positive) / len(results) * 100)}%")
 
-    # ---- Save the full report to the database ----
-    if st.button("💾 Save to database"):
-        save_results(results)
-        st.success(f"Saved {len(results)} reviews to the database.")
+        if themes:
+            # Counter tells us which theme appears most often.
+            top_theme = Counter(themes).most_common(1)[0][0]
+            st.info(f"Customers talk most about: **{top_theme}**")
+
+        # ---- Save the full report to the database ----
+        st.button("💾 Save to database", on_click=save_and_clear)
 
 # ---- Show everything we have ever saved (reads from the database) ----
-with st.expander("📚 Saved history (all reviews in the database)"):
+with st.expander("📚 Saved history (all reviews in the database)", expanded=st.session_state.get("fade_out", False)):
     history = load_history()
     if history:
         st.write(f"Total saved so far: {len(history)}")
